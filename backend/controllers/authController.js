@@ -7,7 +7,7 @@ exports.facebookCallback = async (req, res) => {
 
   try {
     // Exchange code for access token
-    const tokenRes = await axios.get("https://graph.facebook.com/v18.0/oauth/access_token", {
+    const tokenRes = await axios.get("https://graph.facebook.com/v23.0/oauth/access_token", {
       params: {
         client_id: process.env.FB_APP_ID,
         client_secret: process.env.FB_APP_SECRET,
@@ -23,6 +23,7 @@ exports.facebookCallback = async (req, res) => {
     await pool.execute("UPDATE users SET fb_access_token=? WHERE id=?", [accessToken, req.user.id]);
 
     res.send("Facebook connected! Analytics will be fetched in background.");
+       res.redirect(`https://priyanka0335106.github.io/?fb_connected=1`);
   } catch (err) {
     console.error(err);
     res.status(500).send("Failed to connect Facebook");
