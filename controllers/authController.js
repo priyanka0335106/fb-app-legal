@@ -1,10 +1,12 @@
-const axios = require("axios");
-const pool = require("../db");
+// controllers/authController.js
+const axios = require('axios');
 
 exports.facebookCallback = async (req, res) => {
-  const { code, userId } = req.query; // get userId from frontend query
-  if (!code) return res.status(400).send("Code not provided");
-  if (!userId) return res.status(400).send("User ID not provided");
+  const { code } = req.query;
+
+  if (!code) {
+    return res.status(400).json({ error: "Code not provided" });
+  }
 
   try {
     // Exchange code for access token
@@ -12,24 +14,36 @@ exports.facebookCallback = async (req, res) => {
       params: {
         client_id: process.env.FB_APP_ID,
         client_secret: process.env.FB_APP_SECRET,
-        redirect_uri: process.env.FB_REDIRECT_URI,
-        code,
-      },
+        redirect_uri: process.env.FB_REDIRECT_URI, // must exactly match FB settings
+        code
+      }
     });
-    
-        if (!tokenRes.data || !tokenRes.data.access_token) {
-      console.error("No access token returned from Facebook:", tokenRes.data);
-      return res.status(400).send("Failed to get access token from Facebook");
-    }
+
     const accessToken = tokenRes.data.access_token;
 
-    // Save token for the user
-    await pool.execute("UPDATE users SET fb_access_token=? WHERE id=?", [accessToken, userId]);
+    // Optional: fetch user info
+    const userRes = await axios.get('https://graph.facebook.com/me', {
+      params: {
+        access_token: accessToken,
+        fields: 'id,name,email'
+      }
+    });
 
-    // Redirect to frontend with success query
-    res.redirect(`https://priyanka0335106.github.io/?fb_connected=1`);
+    res.json({
+      message: "Facebook login successful",
+      user: userRes.data,
+      accessToken
+    });
+
   } catch (err) {
-    console.error(err);
-    res.status(500).send("Failed to connect Facebook");
+    // Log the exact response from Facebook
+    console.error("Facebook OAuth error:", err.response?.data || err.message);
+
+    // Return friendly error to frontend
+    const fbError = err.response?.data?.error || {};
+    res.status(400).json({
+      message: "Facebook OAuth failed",
+      error: fbError
+    });
   }
 };
